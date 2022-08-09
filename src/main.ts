@@ -37,9 +37,9 @@ async function run() {
     }
     const sender: string = context.payload.sender!.login;
     const issue: {owner: string; repo: string; number: number} = context.issue;
-    let firstContribution: boolean = false;
+    let hasRecentContribution: boolean = false;
     if (isIssue) {
-      firstContribution = await isFirstIssue(
+      hasRecentContribution = await hasRecentIssue(
         client,
         issue.owner,
         issue.repo,
@@ -47,7 +47,7 @@ async function run() {
         issue.number
       );
     } else {
-      firstContribution = await isFirstPull(
+      hasRecentContribution = await hasRecentPullRequest(
         client,
         issue.owner,
         issue.repo,
@@ -55,8 +55,8 @@ async function run() {
         issue.number
       );
     }
-    if (!firstContribution) {
-      console.log('Not the users first contribution');
+    if (hasRecentContribution) {
+      console.log('Has recently contributed, no need to greet');
       return;
     }
 
@@ -92,7 +92,7 @@ async function run() {
   }
 }
 
-async function isFirstIssue(
+async function hasRecentIssue(
   client: github.GitHub,
   owner: string,
   repo: string,
@@ -124,7 +124,7 @@ async function isFirstIssue(
 }
 
 // No way to filter pulls by creator
-async function isFirstPull(
+async function hasRecentPullRequest(
   client: github.GitHub,
   owner: string,
   repo: string,
@@ -146,18 +146,16 @@ async function isFirstPull(
     throw new Error(`Received unexpected API status code ${status}`);
   }
 
-  if (pulls.length === 0) {
-    return true;
-  }
+  console.log(pull.user.login, pull.created_at)
 
   for (const pull of pulls) {
     const login: string = pull.user.login;
-    if (login === sender && pull.number < curPullNumber) {
+    if (login === sender && pull.number < curPullNumber && pull.created_at) {
       return false;
     }
   }
 
-  return await isFirstPull(
+  return await hasRecentPullRequest(
     client,
     owner,
     repo,
